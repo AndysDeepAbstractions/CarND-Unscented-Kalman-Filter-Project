@@ -125,6 +125,7 @@ int main()
     	  estimate(2) = v1;
     	  estimate(3) = v2;
     	  
+		  std::cout << "estimate: " << std::endl << estimate << std::endl;
     	  estimations.push_back(estimate);
 
     	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
