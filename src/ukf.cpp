@@ -120,7 +120,16 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 	/*****************************************************************************
 	 *  Initialization
 	 ****************************************************************************/
-	if (!is_initialized_) {
+
+	std::cout << "time_us_ = " << std::endl << time_us_ << std::endl;
+
+	double delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0;
+	time_us_ = meas_package.timestamp_;
+
+	std::cout << "time_us_ = " << std::endl << time_us_ << std::endl;
+	std::cout << "delta_t = " << std::endl << delta_t << std::endl;
+
+	if (!is_initialized_ || delta_t>1) {  //reinit on pause eg. rerun or dataset change
 		/**
 		TODO:
 		  * Initialize the state ekf_.x_ with the first measurement.
@@ -164,13 +173,6 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 			 std::cout << "measurement_pack.sensor_type_ unknown or disabled for init" << std::endl;
 		}
 	}else{
-		std::cout << "time_us_ = " << std::endl << time_us_ << std::endl;
-
-		double delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0;
-		time_us_ = meas_package.timestamp_;
-
-		std::cout << "time_us_ = " << std::endl << time_us_ << std::endl;
-		std::cout << "delta_t = " << std::endl << delta_t << std::endl;
 
 		Prediction(delta_t);
 
