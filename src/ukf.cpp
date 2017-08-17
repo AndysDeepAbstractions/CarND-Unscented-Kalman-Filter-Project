@@ -17,18 +17,23 @@ UKF::UKF() {
 	// if this is false, radar measurements will be ignored (except during init)
 	use_radar_ = true;
 
+	///* State dimension
+	n_x_ = 5;
+
+	///* Augmented state dimension
+	n_aug_ = 7;
+
 	// initial state vector
-	x_ = VectorXd(5);
+	x_ = VectorXd(n_x_);
 	x_.fill(0.0);
 
 	// initial covariance matrix
-	P_ = MatrixXd(5, 5);
-	//P_.fill(0.0);
-    P_ << 0.15,    0, 0, 0, 0,
-             0, 0.15, 0, 0, 0,
-             0,    0, 1, 0, 0,
-             0,    0, 0, 1, 0,
-             0,    0, 0, 0, 1;
+	P_ = MatrixXd(n_x_, n_x_);
+    P_ << 0.003,     0,    0,    0,    0,
+              0, 0.003,    0,    0,    0,
+              0,     0, 3.00,    0,    0,
+              0,     0,    0, 3.00,    0,
+			  0,     0,    0,    0, 3.00;
 
 	// Process noise standard deviation longitudinal acceleration in m/s^2
 	//std_a_ = 30;
@@ -65,11 +70,6 @@ UKF::UKF() {
 	// init the rest of variables from ukf.h:
 
 
-	///* State dimension
-	n_x_ = 5;
-
-	///* Augmented state dimension
-	n_aug_ = 7;
 
 	///* initially set to false, set to true in first call of ProcessMeasurement
 	is_initialized_ = false;
@@ -130,6 +130,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 		// first measurement
 		cout << "UKF init: " << endl;
 
+		time_us_ = meas_package.timestamp_;
+
 		if (meas_package.sensor_type_ == MeasurementPackage::RADAR /*&& use_radar_*/) {
 		  /**
 		  Convert radar from polar to cartesian coordinates and initialize state.
@@ -146,6 +148,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 			x_ << px, py, v, 0, 0;
 			is_initialized_ = true;
+			return;
 
 		}
 		else if (meas_package.sensor_type_ == MeasurementPackage::LASER /*&& use_laser_*/) {
@@ -155,21 +158,28 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 			x_ << meas_package.raw_measurements_[0],
 				meas_package.raw_measurements_[1], 0, 0, 0;
 			is_initialized_ = true;
+			return;
 		}
 		else{
 			 std::cout << "measurement_pack.sensor_type_ unknown or disabled for init" << std::endl;
 		}
-	}
+	}else{
+		std::cout << "time_us_ = " << std::endl << time_us_ << std::endl;
 
-	double dt = (meas_package.timestamp_ - time_us_) / 1000000.0;
-	time_us_ = meas_package.timestamp_;
-	Prediction(dt);
+		double delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0;
+		time_us_ = meas_package.timestamp_;
 
-	if (meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
-		UpdateRadar(meas_package);
-	}
-	else if (meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
-		UpdateLidar(meas_package);
+		std::cout << "time_us_ = " << std::endl << time_us_ << std::endl;
+		std::cout << "delta_t = " << std::endl << delta_t << std::endl;
+
+		Prediction(delta_t);
+
+		if (meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
+			UpdateRadar(meas_package);
+		}
+		else if (meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
+			UpdateLidar(meas_package);
+		}
 	}
 }
 
@@ -251,17 +261,19 @@ void UKF::Prediction(double delta_t) {
 	 * Sigma Point Prediction Assignment
 	 ******************************************************************************/
 
+	std::cout << "delta_t = " << std::endl << delta_t << std::endl;
+
 	//predict sigma points
 	Xsig_pred_.fill(0.0);
 	for (int i = 0; i< 2*n_aug_+1; i++)
 	{
 		//extract values for better readability
-		double p_x = Xsig_aug(0,i);
-		double p_y = Xsig_aug(1,i);
-		double v = Xsig_aug(2,i);
-		double yaw = Xsig_aug(3,i);
-		double yawd = Xsig_aug(4,i);
-		double nu_a = Xsig_aug(5,i);
+		double p_x      = Xsig_aug(0,i);
+		double p_y      = Xsig_aug(1,i);
+		double v        = Xsig_aug(2,i);
+		double yaw      = Xsig_aug(3,i);
+		double yawd     = Xsig_aug(4,i);
+		double nu_a     = Xsig_aug(5,i);
 		double nu_yawdd = Xsig_aug(6,i);
 
 		//predicted state values
@@ -309,6 +321,8 @@ void UKF::Prediction(double delta_t) {
 	for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
 		x_ = x_+ weights_(i) * Xsig_pred_.col(i);
 	}
+	std::cout << "x_ = " << std::endl << x_ << std::endl;
+
 
 	//predicted state covariance matrix
 	P_.fill(0.0);
